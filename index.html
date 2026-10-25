@@ -156,12 +156,12 @@ body.recording #padPlus{opacity:.25;pointer-events:none}
 .oc button:active{background:var(--p3)}
 .oc button:disabled{opacity:.25}
 #keys{flex:1;position:relative;touch-action:none;view-transition-name:keys}
-#kbopt{position:absolute;left:10px;right:10px;top:0;height:30px;display:none;align-items:center;justify-content:center;gap:6px;font:600 11px system-ui;color:var(--dim)}
-#rinst.hasopt #kbopt{display:flex}
-#rinst.hasopt #kbw{top:32px}
-#kbopt .lbl{margin-right:4px;letter-spacing:.4px}
-#kbopt .sep{width:1px;height:14px;background:var(--ln);margin:0 4px}
-#kbopt button{height:24px;padding:0 10px;border-radius:12px;background:var(--p1);border:1px solid var(--ln);color:var(--dim);font:600 11px system-ui}
+#kbopt{position:absolute;left:10px;right:10px;top:0;min-height:30px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;font:600 11px system-ui;color:var(--dim)}
+#kbopt::-webkit-scrollbar{display:none}
+#rinst.hasopt #kbw{top:var(--ot,34px)}
+#kbopt .sep{flex:0 0 auto;width:1px;height:14px;background:var(--ln);margin:0 4px}
+#kbopt .br{flex-basis:100%;height:0}
+#kbopt button{flex:0 0 auto;height:26px;padding:0 11px;border-radius:13px;background:var(--p1);border:1px solid var(--ln);color:var(--dim);font:600 11px system-ui}
 #kbopt button.on{background:var(--c);color:#111;border-color:transparent}
 #keys.m1 .wk{background:#d9e6fa}#keys.m1 .bk{background:#10192b}
 #keys.m2 .wk{background:#f1dcec}#keys.m2 .bk{background:#2a1325}
@@ -1275,7 +1275,7 @@ function renderInst(){
     el.innerHTML='<div id="kbopt"></div><div id="kbw"><div class="oc"><button id="oLp" aria-label="Oktave darunter hinzufügen">+</button><button id="oLm" aria-label="unterste Oktave entfernen">−</button></div><div id="keys"></div><div class="oc"><button id="oRp" aria-label="Oktave darüber hinzufügen">+</button><button id="oRm" aria-label="oberste Oktave entfernen">−</button></div></div>';
     buildKeys();applyKb();
   }
-  if(tr.inst==='drum')el.classList.remove('hasopt');
+  el.classList.toggle('hasopt',tr.inst!=='drum');
 }
 const PADCOLS=[1,1,2,3,2,3,3,4,4,3,4,4,4,5];
 const isPortrait=()=>matchMedia('(orientation:portrait)').matches;
@@ -1308,29 +1308,22 @@ function buildKeys(){
   const mo=isPortrait()?2:4;$('#oLp').disabled=tr.oct<=0||tr.nOct>=mo;$('#oLm').disabled=tr.nOct<=1;$('#oRp').disabled=tr.nOct>=mo||tr.oct+tr.nOct>=8;$('#oRm').disabled=tr.nOct<=1;
 }
 const rinst=$('#rinst');
-const KBN=['Normal','Arpeggio','Oktav-Arpeggio'],RATES=[[.25,'16tel'],[.5,'8tel'],[1,'4tel']],PATS=['tief-hoch-tief-hoch','tief-tief-hoch-hoch'];
+const RATES=[[.25,'16tel'],[.5,'8tel'],[1,'4tel']],PATS=['tief-hoch-tief-hoch','tief-tief-hoch-hoch'];
 const kbs=()=>recTr.kb||(recTr.kb={m:0,r:.25,o:.25,p:0});
 function applyKb(){
   const k=kbs(),ks=$('#keys'),o=$('#kbopt');if(!ks||!o)return;
-  ks.className='m'+k.m;rinst.classList.toggle('hasopt',k.m>0);
+  ks.className='m'+k.m;
   const chip=(a,v,on,l)=>`<button data-kb="${a}" data-v="${v}" class="${on?'on':''}">${l}</button>`;
-  if(k.m===0){o.innerHTML='';return;}
   const cur=k.m===1?k.r:k.o;
-  o.innerHTML=`<span class="lbl">${KBN[k.m].toUpperCase()}</span>`+RATES.map(r=>chip(k.m===1?'r':'o',r[0],cur===r[0],r[1])).join('')+
-    (k.m===2?'<span class="sep"></span>'+PATS.map((t,i)=>chip('p',i,k.p===i,t)).join(''):'');
+  o.innerHTML=['Normal','Arpeggio','Oktaviert'].map((n,i)=>chip('m',i,k.m===i,n)).join('')+
+    (k.m>0?'<span class="sep"></span>'+RATES.map(r=>chip(k.m===1?'r':'o',r[0],cur===r[0],r[1])).join(''):'')+
+    (k.m===2?(isPortrait()?'<span class="br"></span>':'<span class="sep"></span>')+PATS.map((t,i)=>chip('p',i,k.p===i,t)).join(''):'');
+  rinst.style.setProperty('--ot',(o.offsetHeight+6)+'px');
 }
-function cycleKb(){
-  [...held.keys()].forEach(noteOff);
-  vt(()=>{const k=kbs();k.m=(k.m+1)%3;buildKeys();applyKb();});save();
-}
-const TRI_IDX={0:0,2:1,4:2,5:3,7:4,9:5,11:6};
 function arpSeq(m){
   const k=kbs();
   if(k.m===2)return (k.p===0?[0,12,0,12]:[0,0,12,12]).map(x=>m+x);
-  const pc=((m%12)+12)%12;let ch;
-  if(pc in TRI_IDX){const d=TRI_IDX[pc]+7*Math.floor(m/12);ch=[d,d+2,d+4,d+7].map(x=>WN[x%7]+12*Math.floor(x/7));}
-  else ch=[m,m+4,m+7,m+12];
-  return [0,1,2,3,2,1].map(i=>ch[i]);
+  return [m];
 }
 function arpStart(h){
   const tr=recTr,k=kbs(),rate=k.m===1?k.r:k.o,seq=arpSeq(h.m).filter(x=>x<=127),dur=rate*spb();let i=0;
@@ -1341,7 +1334,6 @@ function arpStart(h){
     h.arpNext+=dur;}};
   step();h.tm=setInterval(step,25);
 }
-let sw=null;const swp=new Map();
 rinst.addEventListener('pointerdown',e=>{
   const tr=recTr;if(!tr)return;
   const rm=e.target.closest('[data-rm]');
@@ -1356,29 +1348,17 @@ rinst.addEventListener('pointerdown',e=>{
   const pad=e.target.closest('.pad');
   if(pad){e.preventDefault();const id=+Object.keys(padEls).find(k=>padEls[k]===pad);padHit(id);return;}
   const kc=e.target.closest('[data-kb]');
-  if(kc){const k=kbs();({r:()=>k.r=+kc.dataset.v,o:()=>k.o=+kc.dataset.v,p:()=>k.p=+kc.dataset.v})[kc.dataset.kb]();[...held.keys()].forEach(noteOff);applyKb();save();return;}
+  if(kc){const k=kbs();({m:()=>k.m=+kc.dataset.v,r:()=>k.r=+kc.dataset.v,o:()=>k.o=+kc.dataset.v,p:()=>k.p=+kc.dataset.v})[kc.dataset.kb]();[...held.keys()].forEach(noteOff);applyKb();save();return;}
   const key=e.target.closest('[data-m]');
-  if(key){
-    const kr=$('#keys').getBoundingClientRect();
-    swp.set(e.pointerId,{y:e.clientY,top:e.clientY-kr.top<kr.height*.35,x:e.clientX});
-    const tops=[...swp.entries()].filter(([id,v])=>v.top);
-    if(tops.length>=2){sw={ids:tops.map(x=>x[0]),done:false};sw.ids.forEach(id=>noteOff('p'+id));}
-    if(sw&&sw.ids.includes(e.pointerId)){e.preventDefault();try{rinst.setPointerCapture(e.pointerId);}catch(err){}return;}
-  }
   if(key){e.preventDefault();try{rinst.setPointerCapture(e.pointerId);}catch(err){}noteOn('p'+e.pointerId,+key.dataset.m);}
 });
 rinst.addEventListener('pointermove',e=>{
-  if(sw&&sw.ids.includes(e.pointerId)){
-    if(!sw.done&&sw.ids.every(id=>swp.has(id)&&(id===e.pointerId?e.clientY:(sw.last&&sw.last[id]!=null?sw.last[id]:swp.get(id).y))-swp.get(id).y>36)){sw.done=true;cycleKb();}
-    (sw.last=sw.last||{})[e.pointerId]=e.clientY;return;
-  }
   const h=held.get('p'+e.pointerId);if(!h)return;
   const el=document.elementFromPoint(e.clientX,e.clientY),key=el&&el.closest&&el.closest('#keys [data-m]');
   if(key&&+key.dataset.m!==h.m){noteOff('p'+e.pointerId);noteOn('p'+e.pointerId,+key.dataset.m);}
 });
-const swEnd=e=>{swp.delete(e.pointerId);if(sw&&sw.ids.includes(e.pointerId)){sw.ids=sw.ids.filter(i=>i!==e.pointerId);if(!sw.ids.length)sw=null;}};
-addEventListener('pointerup',e=>{noteOff('p'+e.pointerId);swEnd(e);});
-addEventListener('pointercancel',e=>{noteOff('p'+e.pointerId);swEnd(e);});
+addEventListener('pointerup',e=>noteOff('p'+e.pointerId));
+addEventListener('pointercancel',e=>noteOff('p'+e.pointerId));
 
 /* Aufnahme */
 function startRec(){
